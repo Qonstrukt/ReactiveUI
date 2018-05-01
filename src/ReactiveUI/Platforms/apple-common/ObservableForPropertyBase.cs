@@ -1,4 +1,4 @@
-// Licensed to the .NET Foundation under one or more agreements.
+﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MS-PL license.
 // See the LICENSE file in the project root for more information.
 
@@ -9,12 +9,17 @@ using System.Linq.Expressions;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using Foundation;
+
+#if UIKIT
 using UIKit;
+#else
+using AppKit;
+#endif
 
 namespace ReactiveUI
 {
     [Preserve]
-    public abstract class UIKitObservableForPropertyBase : ICreatesObservableForProperty
+    public abstract class ObservableForPropertyBase : ICreatesObservableForProperty
     {
         public int GetAffinityForObject(Type type, string propertyName, bool beforeChanged = false)
         {
@@ -74,7 +79,8 @@ namespace ReactiveUI
         protected void Register(Type type, string property, int affinity, Func<NSObject, Expression, IObservable<IObservedChange<object, object>>> createObservable)
         {
             Dictionary<string, ObservablePropertyInfo> typeProperties;
-            if (!config.TryGetValue(type, out typeProperties)) {
+            if (!config.TryGetValue(type, out typeProperties))
+            {
                 typeProperties = new Dictionary<string, ObservablePropertyInfo>();
                 config[type] = typeProperties;
             }
@@ -83,6 +89,7 @@ namespace ReactiveUI
             typeProperties[property] = info;
         }
 
+#if UIKIT
         /// <summary>
         /// Creates an Observable for a UIControl Event
         /// </summary>
@@ -92,20 +99,24 @@ namespace ReactiveUI
         /// <param name="evt">The control event to listen for</param>
         protected static IObservable<IObservedChange<object, object>> ObservableFromUIControlEvent(NSObject sender, Expression expression, UIControlEvent evt)
         {
-            return Observable.Create<IObservedChange<object, object>>(subj => {
+            return Observable.Create<IObservedChange<object, object>>(subj =>
+            {
                 var control = (UIControl)sender;
 
-                EventHandler handler = (s, e) => {
+                EventHandler handler = (s, e) =>
+                {
                     subj.OnNext(new ObservedChange<object, object>(sender, expression));
                 };
 
                 control.AddTarget(handler, evt);
 
-                return Disposable.Create(() => {
+                return Disposable.Create(() =>
+                {
                     control.RemoveTarget(handler, evt);
                 });
             });
         }
+#endif
 
         /// <summary>
         /// Creates an Observable for a NSNotificationCenter notification
@@ -116,12 +127,15 @@ namespace ReactiveUI
         /// <param name="notification">Notification.</param>
         protected static IObservable<IObservedChange<object, object>> ObservableFromNotification(NSObject sender, Expression expression, NSString notification)
         {
-            return Observable.Create<IObservedChange<object, object>>(subj => {
-                var handle = NSNotificationCenter.DefaultCenter.AddObserver(notification, (e) => {
+            return Observable.Create<IObservedChange<object, object>>(subj =>
+            {
+                var handle = NSNotificationCenter.DefaultCenter.AddObserver(notification, (e) =>
+                {
                     subj.OnNext(new ObservedChange<object, object>(sender, expression));
                 }, sender);
 
-                return Disposable.Create(() => {
+                return Disposable.Create(() =>
+                {
                     NSNotificationCenter.DefaultCenter.RemoveObserver(handle);
                 });
             });
@@ -136,8 +150,10 @@ namespace ReactiveUI
         /// <param name="notification">Notification.</param>
         protected static IObservable<IObservedChange<object, object>> ObservableFromEvent(NSObject sender, Expression expression, string eventName)
         {
-            return Observable.Create<IObservedChange<object, object>>(subj => {
-                return Observable.FromEventPattern(sender, eventName).Subscribe((e) => {
+            return Observable.Create<IObservedChange<object, object>>(subj =>
+            {
+                return Observable.FromEventPattern(sender, eventName).Subscribe((e) =>
+                {
                     subj.OnNext(new ObservedChange<object, object>(sender, expression));
                 });
             });
